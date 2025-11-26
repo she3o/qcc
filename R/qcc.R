@@ -21,7 +21,7 @@ qcc <- function(data,
                 sizes, center, std.dev, limits, 
                 newdata, newsizes, 
                 nsigmas = 3, confidence.level, 
-                rules = c(1,4), ...)
+                rules = c(1,4), spec.limits, ...)
 {
   call <- match.call()
   
@@ -165,6 +165,19 @@ qcc <- function(data,
        dimnames(limits) <- list(rep("",nrow(limits)), c("LCL ", "UCL"))
      }
   object$limits <- limits
+
+  # validate and store specification limits
+  if(!is.null(spec.limits))
+  { spec.limits <- as.vector(spec.limits)[1:2]
+    LSL <- spec.limits[1]; if(!(is.numeric(LSL) & is.finite(LSL))) LSL <- NA
+    USL <- spec.limits[2]; if(!(is.numeric(USL) & is.finite(USL))) USL <- NA
+    if(is.na(LSL) & is.na(USL))
+      spec.limits <- NULL
+    else
+    { spec.limits <- c(LSL, USL)
+      names(spec.limits) <- c("LSL", "USL") }
+  }
+  object$spec.limits <- spec.limits
   
   # identify violating rules observations
   object$violations <- qccRules(object)
@@ -230,6 +243,16 @@ print.qcc <- function(x, digits = getOption("digits"), ...)
     cat("Standard deviation         = ", out, "\n", sep = "")
   }
 
+  spec.limits <- object$spec.limits
+  if(!is.null(spec.limits))
+  { cat("Specification limits       =",
+        paste0("LSL: ", ifelse(is.na(spec.limits[1]), "NA", 
+                                signif(spec.limits[1], digits))),
+        paste0("USL: ", ifelse(is.na(spec.limits[2]), "NA", 
+                                signif(spec.limits[2], digits))),
+        "\n")
+  }
+
   newdata.name <- object$newdata.name
   newstats <- object$newstats
   if (!is.null(newstats)) 
@@ -279,6 +302,7 @@ plot.qcc <- function(x, xtime = NULL,
                      fill = qcc.options("fill"),
                      label.center = "CL",
                      label.limits = c("LCL ", "UCL"), 
+                     spec.limits,
                      title, xlab, ylab, xlim, ylim,
                      digits = getOption("digits"),
                      ...) 
@@ -300,6 +324,18 @@ plot.qcc <- function(x, xtime = NULL,
   limits <- object$limits 
   lcl <- limits[,1]
   ucl <- limits[,2]
+  if(missing(spec.limits))
+    spec.limits <- object$spec.limits
+  if(!is.null(spec.limits))
+  { spec.limits <- as.vector(spec.limits)[1:2]
+    LSL <- spec.limits[1]; if(!(is.numeric(LSL) & is.finite(LSL))) LSL <- NA
+    USL <- spec.limits[2]; if(!(is.numeric(USL) & is.finite(USL))) USL <- NA
+    if(is.na(LSL) & is.na(USL))
+      spec.limits <- NULL
+    else
+    { spec.limits <- c(LSL, USL)
+      names(spec.limits) <- c("LSL", "USL") }
+  }
   newstats <- object$newstats
   newdata.name <- object$newdata.name
   violations <- object$violations
@@ -327,7 +363,11 @@ plot.qcc <- function(x, xtime = NULL,
     df <- df[seq_len(length(df$group)) > length(object$statistics),]
   
   if(missing(ylim))
-    ylim <- extendrange(c(df$stat, df$lcl, df$ucl))
+  { ylim.base <- c(df$stat, df$lcl, df$ucl)
+    if(!is.null(spec.limits))
+      ylim.base <- c(ylim.base, spec.limits)
+    ylim <- extendrange(ylim.base)
+  }
   if(missing(xlim))
     xlim <- extendrange(df$group)
 
@@ -401,15 +441,27 @@ plot.qcc <- function(x, xtime = NULL,
                   col = qcc.options("zones")$col[1])
     }
 
-  plot <- plot + 
-    geom_text(data = data.frame(y = c(rev(center)[1],
-                                      rev(lcl)[1],
-                                      rev(ucl)[1]),
-                                x = rep(xlim[2], 3)),
-              aes_string(x = "x", y = "y"),
-              label = c(label.center, label.limits),
-              hjust = -0.2, # nudge_x = 0.2,
-              size = 10 * 5/14, col = gray(0.3))
+    labels_y <- c(rev(center)[1],
+                  rev(lcl)[1],
+                  rev(ucl)[1])
+    labels_txt <- c(label.center, label.limits)
+    if(!is.null(spec.limits))
+    { 
+      if(!is.na(spec.limits[1]))
+      { labels_y <- c(labels_y, spec.limits[1])
+        labels_txt <- c(labels_txt, "LSL") }
+      if(!is.na(spec.limits[2]))
+      { labels_y <- c(labels_y, spec.limits[2])
+        labels_txt <- c(labels_txt, "USL") }
+    }
+
+    plot <- plot + 
+      geom_text(data = data.frame(y = labels_y,
+                                  x = rep(xlim[2], length(labels_y))),
+                aes_string(x = "x", y = "y"),
+                label = labels_txt,
+                hjust = -0.2, # nudge_x = 0.2,
+                size = 10 * 5/14, col = gray(0.3))
   }
   
   # draw 2-sigma warning limits
@@ -521,6 +573,15 @@ plot.qcc <- function(x, xtime = NULL,
               col = qcc.options("zones")$col[1])
   }
 
+  # draw specification limits
+  if(!is.null(spec.limits))
+  {
+    if(!is.na(spec.limits[1]))
+      plot <- plot + geom_hline(yintercept = spec.limits[1], lty = 2)
+    if(!is.na(spec.limits[2]))
+      plot <- plot + geom_hline(yintercept = spec.limits[2], lty = 2)
+  }
+
   if(chart.all & (!is.null(newstats)))
   {
     len.obj.stats <- length(stats)
@@ -562,7 +623,13 @@ plot.qcc <- function(x, xtime = NULL,
                    paste0("LCL = ", if(length(unique(lcl)) == 1) 
                      signif(lcl[1], digits) else "variable"),
                    paste0("UCL = " ,if(length(unique(ucl)) == 1) 
-                     signif(ucl[1], digits) else "variable"), 
+                     signif(ucl[1], digits) else "variable"),
+                   if(!is.null(spec.limits))
+                     paste0("LSL = ", ifelse(is.na(spec.limits[1]), "NA",
+                                             signif(spec.limits[1], digits))) else NULL,
+                   if(!is.null(spec.limits))
+                     paste0("USL = ", ifelse(is.na(spec.limits[2]), "NA",
+                                             signif(spec.limits[2], digits))) else NULL,
                    sep = "\n")
     text3 <- paste("",
                    paste0("No. beyond limits = ", sum(violations == 1, na.rm=TRUE)),

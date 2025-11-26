@@ -14,7 +14,7 @@ qcc(data,
     sizes, center, std.dev, limits,
     newdata, newsizes, 
     nsigmas = 3, confidence.level, 
-    rules = c(1,4), \dots)
+    rules = c(1,4), spec.limits, \dots)
 
 \method{print}{qcc}(x, digits = getOption("digits"), \dots)
 
@@ -25,6 +25,7 @@ qcc(data,
      fill = qcc.options("fill"),
      label.center = "CL",
      label.limits = c("LCL ", "UCL"),
+     spec.limits,
      title, xlab, ylab, xlim, ylim,
      digits = getOption("digits"), \dots)
 }
@@ -61,6 +62,8 @@ Several methods are available for estimating the standard deviation in case of a
 }
 
 \item{limits}{a two-values vector specifying control limits.}
+
+\item{spec.limits}{an optional numeric vector of length two specifying the lower and upper specification limits. Use \code{NA} to express a one-sided limit; if both values are \code{NA} the limits are ignored. For \code{plot.qcc} the default is to reuse the limits stored in the \code{qcc} object.}
 
 \item{newdata}{a data frame, matrix or vector, as for the \code{data} argument, providing further data to plot but not included in the computations.}
 
@@ -126,6 +129,8 @@ diameter  = qccGroups(data = pistonrings, diameter, sample)
 
 (q  = qcc(diameter[1:25,], type="xbar"))
 plot(q)
+
+plot(qcc(diameter[1:25,], type="xbar", spec.limits = c(73.99, 74.05)))
 
 (q  = qcc(diameter[1:25,], type="xbar", newdata=diameter[26:40,]))
 plot(q)
