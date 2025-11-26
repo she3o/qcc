@@ -21,7 +21,7 @@ qcc <- function(data,
                 sizes, center, std.dev, limits, 
                 newdata, newsizes, 
                 nsigmas = 3, confidence.level, 
-                rules = c(1,4), spec.limits, ...)
+                rules = c(1,4), spec.limits = NULL, ...)
 {
   call <- match.call()
   
@@ -302,7 +302,7 @@ plot.qcc <- function(x, xtime = NULL,
                      fill = qcc.options("fill"),
                      label.center = "CL",
                      label.limits = c("LCL ", "UCL"), 
-                     spec.limits,
+                     spec.limits = NULL,
                      title, xlab, ylab, xlim, ylim,
                      digits = getOption("digits"),
                      ...) 
@@ -1056,4 +1056,3 @@ limits.u <- function(center, std.dev, sizes, nsigmas = NULL, conf = NULL)
   if (length(unique(sizes))==1) sizes <- sizes[1]
   limits.c(center * sizes, std.dev, sizes, nsigmas, conf) / sizes
 }
-

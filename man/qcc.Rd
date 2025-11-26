@@ -14,7 +14,7 @@ qcc(data,
     sizes, center, std.dev, limits,
     newdata, newsizes, 
     nsigmas = 3, confidence.level, 
-    rules = c(1,4), spec.limits, \dots)
+    rules = c(1,4), spec.limits = NULL, \dots)
 
 \method{print}{qcc}(x, digits = getOption("digits"), \dots)
 
@@ -25,7 +25,7 @@ qcc(data,
      fill = qcc.options("fill"),
      label.center = "CL",
      label.limits = c("LCL ", "UCL"),
-     spec.limits,
+     spec.limits = NULL,
      title, xlab, ylab, xlim, ylim,
      digits = getOption("digits"), \dots)
 }
